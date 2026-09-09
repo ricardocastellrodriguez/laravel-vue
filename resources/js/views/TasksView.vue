@@ -1,51 +1,33 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import http from '../services/http'
-
-import type { Task } from '../types/Task'
-
-const tasks = ref<Task[]>([])
+import { useTasks } from '../composables/useTasks'
 
 const title = ref('')
 
-async function loadTasks(): Promise<void> {
-    const response = await http.get<Task[]>('/api/tasks')
+const {
+    tasks,
+    loading,
+    error,
 
-    tasks.value = response.data
-}
+    loadTasks,
+    createTask,
+    toggleTask,
+    deleteTask,
+} = useTasks()
 
-async function createTask(): Promise<void> {
-    if (!title.value.trim()) {
+async function handleCreateTask(): Promise<void> {
+    const cleanTitle = title.value.trim()
+
+    if (!cleanTitle) {
         return
     }
 
-    const response = await http.post<Task>('/api/tasks', {
-        title: title.value,
-    })
+    const task = await createTask(cleanTitle)
 
-    tasks.value.unshift(response.data)
-
-    title.value = ''
-}
-
-async function toggleTask(task: Task): Promise<void> {
-    const response = await http.put<Task>(
-        `/api/tasks/${task.id}`,
-        {
-            completed: !task.completed,
-        },
-    )
-
-    Object.assign(task, response.data)
-}
-
-async function deleteTask(task: Task): Promise<void> {
-    await http.delete(`/api/tasks/${task.id}`)
-
-    tasks.value = tasks.value.filter(
-        item => item.id !== task.id,
-    )
+    if (task) {
+        title.value = ''
+    }
 }
 
 onMounted(() => {
@@ -57,17 +39,28 @@ onMounted(() => {
     <section>
         <h1>Tareas</h1>
 
-        <form @submit.prevent="createTask">
+        <form @submit.prevent="handleCreateTask">
             <input
                 v-model="title"
                 type="text"
                 placeholder="Nueva tarea"
             >
 
-            <button type="submit">
+            <button
+                type="submit"
+                :disabled="loading"
+            >
                 Crear
             </button>
         </form>
+
+        <p v-if="loading">
+            Cargando...
+        </p>
+
+        <p v-if="error">
+            {{ error }}
+        </p>
 
         <ul>
             <li
