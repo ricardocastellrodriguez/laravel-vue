@@ -1,88 +1,49 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 
-import { taskService } from '../services/taskService'
+import { useTaskStore } from '../stores/taskStore'
 
-import type { Task } from '../types/Task'
+export type TaskFilter =
+    | 'all'
+    | 'pending'
+    | 'completed'
 
 export function useTasks() {
-    const tasks = ref<Task[]>([])
-    const loading = ref(false)
-    const error = ref<string | null>(null)
+    const taskStore = useTaskStore()
 
-    async function loadTasks(): Promise<void> {
-        loading.value = true
-        error.value = null
+    const {
+        tasks,
+        loading,
+        error,
+    } = storeToRefs(taskStore)
 
-        try {
-            tasks.value = await taskService.getAll()
-        } catch (exception) {
-            error.value = getErrorMessage(exception)
-        } finally {
-            loading.value = false
-        }
-    }
+    const {
+        loadTasks,
+        createTask,
+        toggleTask,
+        deleteTask,
+    } = taskStore
 
-    async function createTask(
-        title: string,
-    ): Promise<Task | null> {
-        error.value = null
+    const filter = ref<TaskFilter>('all')
 
-        try {
-            const task = await taskService.create({
-                title,
-            })
-
-            tasks.value.unshift(task)
-
-            return task
-        } catch (exception) {
-            error.value = getErrorMessage(exception)
-
-            return null
-        }
-    }
-
-    async function toggleTask(
-        task: Task,
-    ): Promise<void> {
-        error.value = null
-
-        try {
-            const updatedTask = await taskService.update(
-                task.id,
-                {
-                    completed: !task.completed,
-                },
+    const filteredTasks = computed(() => {
+        if (filter.value === 'completed') {
+            return tasks.value.filter(
+                task => Boolean(task.completed),
             )
-
-            Object.assign(task, updatedTask)
-        } catch (exception) {
-            error.value = getErrorMessage(exception)
         }
-    }
 
-    async function deleteTask(
-        task: Task,
-    ): Promise<void> {
-        error.value = null
-
-        try {
-            await taskService.remove(task.id)
-
-            tasks.value = tasks.value.filter(
-                item => item.id !== task.id,
+        if (filter.value === 'pending') {
+            return tasks.value.filter(
+                task => !Boolean(task.completed),
             )
-        } catch (exception) {
-            error.value = getErrorMessage(exception)
-        }
-    }
-
-    function getErrorMessage(exception: unknown): string {
-        if (exception instanceof Error) {
-            return exception.message
         }
 
-        return 'Ocurrió un error inesperado.'
+        return tasks.value
+    })
+
+    function setFilter(value: TaskFilter): void {
+        filter.value = value
     }
 
     return {
@@ -90,9 +51,14 @@ export function useTasks() {
         loading,
         error,
 
+        filter,
+        filteredTasks,
+
         loadTasks,
         createTask,
         toggleTask,
         deleteTask,
+
+        setFilter,
     }
 }

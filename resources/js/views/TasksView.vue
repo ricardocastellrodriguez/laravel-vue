@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import TaskSummary from '../components/tasks/TaskSummary.vue'
+
 import { useTasks } from '../composables/useTasks'
 
 const title = ref('')
 
 const {
-    tasks,
+    filteredTasks,
     loading,
     error,
 
@@ -14,6 +16,8 @@ const {
     createTask,
     toggleTask,
     deleteTask,
+
+    setFilter,
 } = useTasks()
 
 async function handleCreateTask(): Promise<void> {
@@ -39,6 +43,10 @@ onMounted(() => {
     <section>
         <h1>Tareas</h1>
 
+        <TaskSummary />
+
+        <hr>
+
         <form @submit.prevent="handleCreateTask">
             <input
                 v-model="title"
@@ -54,8 +62,31 @@ onMounted(() => {
             </button>
         </form>
 
+        <div>
+            <button
+                type="button"
+                @click="setFilter('all')"
+            >
+                Todas
+            </button>
+
+            <button
+                type="button"
+                @click="setFilter('pending')"
+            >
+                Pendientes
+            </button>
+
+            <button
+                type="button"
+                @click="setFilter('completed')"
+            >
+                Completadas
+            </button>
+        </div>
+
         <p v-if="loading">
-            Cargando...
+            Procesando...
         </p>
 
         <p v-if="error">
@@ -64,12 +95,13 @@ onMounted(() => {
 
         <ul>
             <li
-                v-for="task in tasks"
+                v-for="task in filteredTasks"
                 :key="task.id"
             >
                 <input
                     type="checkbox"
-                    :checked="task.completed"
+                    :checked="Boolean(task.completed)"
+                    :disabled="loading"
                     @change="toggleTask(task)"
                 >
 
@@ -79,6 +111,7 @@ onMounted(() => {
 
                 <button
                     type="button"
+                    :disabled="loading"
                     @click="deleteTask(task)"
                 >
                     Eliminar
